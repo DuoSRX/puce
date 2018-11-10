@@ -113,13 +113,16 @@ impl Cpu {
                         self.regs[x] = res as u8;
                     },
                     0x5 => {
-                        let res = (self.regs[x] as u32).wrapping_sub(self.regs[y] as u32);
-                        if res & 0x100 == 0 {
+                        let x2 = self.regs[x];
+                        let y = self.regs[y];
+
+                        if y > x2 {
                             self.regs[0xF] = 0;
                         } else {
                             self.regs[0xF] = 1;
                         }
-                        self.regs[x] = res as u8;
+
+                        self.regs[x].wrapping_sub(y);
                     },
                     0x6 => {
                         self.regs[0xF] = self.regs[x] & 1;
@@ -151,7 +154,7 @@ impl Cpu {
                     let pixel = self.mem[(line_y + self.i) as usize];
 
                     for line_x in 0..8 {
-                        if pixel & (0b1000_0000 >> line_x) != 0 {
+                        if pixel & (0x80 >> line_x) != 0 {
                             let offset = (x + line_x + ((y + line_y) * 64)) as usize;
                             if self.gfx[offset] == 1 { self.regs[0xF] = 1 } // collision
                             self.gfx[offset] ^= 1;
@@ -286,7 +289,7 @@ fn main() {
                     break 'running
                 },
                 Event::KeyUp { .. } => {
-                    //cpu.key_pressed = None;
+                    cpu.key_pressed = None;
                 },
                 Event::KeyDown { keycode: Some(keycode), .. } => {
                     cpu.key_pressed = keycode_to_u8(keycode);
