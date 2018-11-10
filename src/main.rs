@@ -1,5 +1,13 @@
 extern crate rand;
+extern crate termion;
 
+use termion::event::Key;
+use termion::input::TermRead;
+use termion::color;
+use termion::screen::*;
+use termion::raw::IntoRawMode;
+use std::io::{Write, stdout, stdin};
+use std::{time, thread};
 use rand::Rng;
 
 #[derive(Debug)]
@@ -22,6 +30,8 @@ struct Cpu {
     delay: u16,
     /// Sound Timer
     sound: u16,
+    /// Whether to draw graphics
+    should_draw: bool,
 }
 
 impl Cpu {
@@ -39,13 +49,15 @@ impl Cpu {
             gfx: vec![0; 64 * 32],
             delay: 0,
             sound: 0,
+            should_draw: false,
         }
     }
 
     fn step(&mut self) {
-        self.store_16(0x200, 0x600A);
+        self.store_16(0x200, 0x600F);
         self.store_16(0x202, 0xF029);
         self.store_16(0x204, 0xD005);
+        self.should_draw = false;
 
         let instruction = self.load_16(self.pc);
         println!("{:02x}: {:02x} {:?} I:{:04x}", self.pc, instruction, self.regs, self.i);
@@ -123,6 +135,7 @@ impl Cpu {
                 let x = self.regs[x] as u16;
                 let y = self.regs[y] as u16;
                 let height = n as u16;
+                self.should_draw = true;
 
                 for line_y in 0..height {
                     let pixel = self.mem[(line_y + self.i) as usize];
@@ -210,13 +223,33 @@ fn main() {
     cpu.step();
     cpu.step();
 
+    let stdin = stdin();
+    let mut stdout = stdout().into_raw_mode().unwrap();
+    let mut screen = AlternateScreen::from(std::io::stdout());
+
+    write!(stdout, "{}", termion::cursor::Hide).unwrap();
+
     for row in 0..32 {
         for column in 0..64 {
-            match cpu.gfx[column + row * 64] {
-                0 => print!("."),
-                _ => print!("X"),
+            write!(screen, "{}", termion::cursor::Goto(column + 1, row + 1)).unwrap();
+
+            match cpu.gfx[(column + row * 64) as usize] {
+                0 => write!(screen, "{}█", color::Fg(color::Red)).unwrap(),
+                _ => write!(screen, " ").unwrap(),
             };
         };
         println!("");
     }
+
+    for c in stdin.keys() {
+        match c.unwrap() {
+            Key::Char('q') => break,
+            Key::Char(c) => println!("{}", c),
+            _ => {},
+        }
+    }
+
+    screen.flush().unwrap();
+    thread::sleep(time::Duration::from_secs(1));
+    print!("{}", termion::cursor::Show);
 }
