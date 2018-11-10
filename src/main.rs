@@ -78,7 +78,10 @@ impl Cpu {
         match a {
             0x0 => {
                 match n {
-                    0 => self.gfx = vec![0; 64 * 32], // FIXME: zero out instead of reallocating
+                    0 => {
+                        self.gfx = vec![0; 64 * 32]; // FIXME: zero out instead of reallocating
+                        self.should_draw = true;
+                    },
                     _ => {
                         self.sp -= 1;
                         let address = self.stack[self.sp];
