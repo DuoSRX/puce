@@ -54,13 +54,34 @@ impl Cpu {
     }
 
     fn step(&mut self) {
-        self.store_16(0x200, 0x600F);
-        self.store_16(0x202, 0xF029);
-        self.store_16(0x204, 0xD005);
+        let prog = vec![
+            0x6100, // LD V1, 0 ; x
+            0x620A, // LD V2, 0 ; y
+            0x6307, // LD V3, 3 ; number to draw
+            0x6400, // LD V4, 0 ; character counter
+            0x650A, // LD V5, 0 ; character to draw
+            0x9340, // SKIP if X != Y
+            0x1220, // JUMP TO EXIT $220
+            0xF529, // SPR V5
+            0xD125, // DRAW V1 V2 5 ; draw x=v1, y=v2, height=5
+            0x7105, // ADD V1, 5
+            0x7401, // ADD V4, 1
+            0x7501, // ADD V5, 1
+            0x120A, // JMP to loop $210
+            0x00E0  // CLS
+        ];
+
+        for (i, item) in prog.iter().enumerate() {
+            self.store_16(0x200 + (i as u16) * 2, (*item) as u16);
+        }
+
+        // self.store_16(0x200, 0x600F);
+        // self.store_16(0x202, 0xF029);
+        // self.store_16(0x204, 0xD005);
         self.should_draw = false;
 
         let instruction = self.load_16(self.pc);
-        println!("{:02x}: {:02x} {:?} I:{:04x}", self.pc, instruction, self.regs, self.i);
+        println!("{:04x}: {:04x} {:?} I:{:04x}", self.pc, instruction, self.regs, self.i);
         self.pc += 2;
 
         let a = instruction >> 12;
@@ -219,9 +240,10 @@ impl Cpu {
 
 fn main() {
     let mut cpu = Cpu::new();
+    for _ in 0..50 {
+
     cpu.step();
-    cpu.step();
-    cpu.step();
+    }
 
     let stdin = stdin();
     let mut stdout = stdout().into_raw_mode().unwrap();
