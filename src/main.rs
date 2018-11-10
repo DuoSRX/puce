@@ -5,6 +5,7 @@ use termion::event::Key;
 use termion::input::TermRead;
 use termion::color;
 use termion::screen::*;
+use termion::async_stdin;
 use termion::raw::IntoRawMode;
 use std::io::{Write, stdout, stdin};
 use std::{time, thread};
@@ -23,7 +24,7 @@ struct Cpu {
     /// V Registers from V0 to VF
     pub regs: [u8; 16],
     /// Memory. Usually 4096 bytes
-    mem: Vec<u8>,
+    pub mem: Vec<u8>,
     /// Graphics. 2048 pixels
     pub gfx: Vec<u8>,
     /// Delay timer
@@ -42,7 +43,7 @@ impl Cpu {
         Cpu {
             i: 0,
             pc: 0x200,
-            sp: 0xEFF,
+            sp: 0,
             stack: [0; 16],
             regs: [0; 16],
             mem: mem,//vec![0; 0x1000],
@@ -54,26 +55,26 @@ impl Cpu {
     }
 
     fn step(&mut self) {
-        let prog = vec![
-            0x6100, // LD V1, 0 ; x
-            0x620A, // LD V2, 0 ; y
-            0x6307, // LD V3, 3 ; number to draw
-            0x6400, // LD V4, 0 ; character counter
-            0x650A, // LD V5, 0 ; character to draw
-            0x9340, // SKIP if X != Y
-            0x1220, // JUMP TO EXIT $220
-            0xF529, // SPR V5
-            0xD125, // DRAW V1 V2 5 ; draw x=v1, y=v2, height=5
-            0x7105, // ADD V1, 5
-            0x7401, // ADD V4, 1
-            0x7501, // ADD V5, 1
-            0x120A, // JMP to loop $210
-            0x00E0  // CLS
-        ];
+        // let prog = vec![
+        //     0x6100, // LD V1, 0 ; x
+        //     0x620A, // LD V2, 0 ; y
+        //     0x6307, // LD V3, 3 ; number to draw
+        //     0x6400, // LD V4, 0 ; character counter
+        //     0x650A, // LD V5, 0 ; character to draw
+        //     0x9340, // SKIP if X != Y
+        //     0x1220, // JUMP TO EXIT $220
+        //     0xF529, // SPR V5
+        //     0xD125, // DRAW V1 V2 5 ; draw x=v1, y=v2, height=5
+        //     0x7105, // ADD V1, 5
+        //     0x7401, // ADD V4, 1
+        //     0x7501, // ADD V5, 1
+        //     0x120A, // JMP to loop $210
+        //     0x00E0  // CLS
+        // ];
 
-        for (i, item) in prog.iter().enumerate() {
-            self.store_16(0x200 + (i as u16) * 2, (*item) as u16);
-        }
+        // for (i, item) in prog.iter().enumerate() {
+        //     self.store_16(0x200 + (i as u16) * 2, (*item) as u16);
+        // }
 
         // self.store_16(0x200, 0x600F);
         // self.store_16(0x202, 0xF029);
@@ -81,8 +82,7 @@ impl Cpu {
         self.should_draw = false;
 
         let instruction = self.load_16(self.pc);
-        println!("{:04x}: {:04x} {:?} I:{:04x}", self.pc, instruction, self.regs, self.i);
-        self.pc += 2;
+        //println!("{:04x}: {:04x} {:?} I:{:04x} S:{:02x}", self.pc, instruction, self.regs, self.i, self.sp);
 
         let a = instruction >> 12;
         let x = ((instruction >> 8) & 0xF) as usize;
@@ -94,12 +94,12 @@ impl Cpu {
         match a {
             0x0 => {
                 match n {
-                    0 => (), // TODO: Clear screen
+                    0 => {}, // TODO: Clear screen
                     _ => {
                         // return from subroutine
-                        let address = self.load_16(self.sp as u16);
                         self.sp -= 1;
-                        self.pc = address;
+                        let address = self.stack[self.sp];
+                        self.pc = address - 2; // oh god why
                     }
                 }
             }
@@ -109,7 +109,7 @@ impl Cpu {
             0x2 => {
                 self.stack[self.sp] = self.pc;
                 self.sp += 1;
-                self.pc = nnn;
+                self.pc = nnn - 2; // Hackish oh god
             },
             0x3 => if self.regs[x] == 0 { self.pc += 2; },
             0x4 => if self.regs[x] != 0 { self.pc += 2; },
@@ -203,6 +203,8 @@ impl Cpu {
 
         if self.delay > 0 { self.delay -= 1 };
         if self.sound > 0 { self.sound -= 1 }; // TODO: Emit beep
+
+        self.pc += 2;
     }
 
     fn load_16(&self, address: u16) -> u16 {
@@ -240,38 +242,44 @@ impl Cpu {
 
 fn main() {
     let mut cpu = Cpu::new();
-    for _ in 0..50 {
+    let rom = include_bytes!("../PONG");
 
-    cpu.step();
+    for (i, byte) in rom.iter().enumerate() {
+        cpu.mem[0x200 + i] = *byte;
     }
 
-    let stdin = stdin();
     let mut stdout = stdout().into_raw_mode().unwrap();
     let mut screen = AlternateScreen::from(std::io::stdout());
 
-    write!(stdout, "{}", termion::cursor::Hide).unwrap();
+    write!(screen, "{}", termion::cursor::Hide).unwrap();
 
-    for row in 0..32 {
-        for column in 0..64 {
-            write!(screen, "{}", termion::cursor::Goto(column + 1, row + 1)).unwrap();
+    'running: loop {
+        let mut stdin = stdin();
+        for c in stdin.keys() {
+            match c.unwrap() {
+                Key::Char('q') => break 'running,
+                _ => {},
+            }
+        }
+        cpu.step();
 
-            match cpu.gfx[(column + row * 64) as usize] {
-                0 => write!(screen, "{}█", color::Fg(color::Red)).unwrap(),
-                _ => write!(screen, " ").unwrap(),
-            };
-        };
-        println!("");
-    }
+        if cpu.should_draw {
+            for row in 0..32 {
+                for column in 0..64 {
+                    write!(screen, "{}", termion::cursor::Goto(column + 1, row + 1)).unwrap();
 
-    for c in stdin.keys() {
-        match c.unwrap() {
-            Key::Char('q') => break,
-            Key::Char(c) => println!("{}", c),
-            _ => {},
+                    match cpu.gfx[(column + row * 64) as usize] {
+                        0 => write!(screen, "{}█", color::Fg(color::Red)).unwrap(),
+                        _ => write!(screen, " ").unwrap(),
+                    };
+                };
+                println!("");
+            }
+            screen.flush().unwrap();
         }
     }
 
-    screen.flush().unwrap();
     thread::sleep(time::Duration::from_secs(1));
+    write!(screen, "{}", termion::cursor::Show).unwrap();
     print!("{}", termion::cursor::Show);
 }
