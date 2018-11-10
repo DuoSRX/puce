@@ -242,7 +242,7 @@ impl Cpu {
 
 fn main() {
     let mut cpu = Cpu::new();
-    let rom = include_bytes!("../PONG");
+    let rom = include_bytes!("../roms/PONG");
 
     for (i, byte) in rom.iter().enumerate() {
         cpu.mem[0x200 + i] = *byte;
