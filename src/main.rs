@@ -1,15 +1,20 @@
 extern crate rand;
-extern crate termion;
+extern crate rustbox;
+extern crate sdl2;
 
-use termion::event::Key;
-use termion::input::TermRead;
-use termion::color;
-use termion::screen::*;
-use termion::async_stdin;
-use termion::raw::IntoRawMode;
 use std::io::{Write, stdout, stdin};
 use std::{time, thread};
 use rand::Rng;
+use std::error::Error;
+use std::default::Default;
+
+use rustbox::{RustBox};
+use rustbox::Key;
+
+use sdl2::pixels::{Color,PixelFormatEnum};
+use sdl2::rect::Rect;
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
 
 #[derive(Debug)]
 struct Cpu {
@@ -248,38 +253,70 @@ fn main() {
         cpu.mem[0x200 + i] = *byte;
     }
 
-    let mut stdout = stdout().into_raw_mode().unwrap();
-    let mut screen = AlternateScreen::from(std::io::stdout());
+    // let rustbox = match RustBox::init(Default::default()) {
+    //     Result::Ok(v) => v,
+    //     Result::Err(e) => panic!("{}", e),
+    // };
 
-    write!(screen, "{}", termion::cursor::Hide).unwrap();
+    let sdl_context = sdl2::init().unwrap();
+    let video_subsystem = sdl_context.video().unwrap();
+
+    let window = video_subsystem.window("wat", 64 * 8, 32 * 8)
+        .position_centered()
+        .opengl()
+        .build()
+        .unwrap();
+
+    let mut canvas = window.into_canvas().present_vsync().accelerated().build().unwrap();
+    canvas.set_draw_color(Color::RGB(0, 0, 0));
+    canvas.clear();
+    canvas.present();
+
+    let mut event_pump = sdl_context.event_pump().unwrap();
 
     'running: loop {
-        let mut stdin = stdin();
-        for c in stdin.keys() {
-            match c.unwrap() {
-                Key::Char('q') => break 'running,
-                _ => {},
-            }
-        }
         cpu.step();
 
         if cpu.should_draw {
+            canvas.set_draw_color(Color::RGB(0, 0, 0));
+            canvas.clear();
+            canvas.set_draw_color(Color::RGB(255, 210, 0));
+
             for row in 0..32 {
                 for column in 0..64 {
-                    write!(screen, "{}", termion::cursor::Goto(column + 1, row + 1)).unwrap();
-
                     match cpu.gfx[(column + row * 64) as usize] {
-                        0 => write!(screen, "{}█", color::Fg(color::Red)).unwrap(),
-                        _ => write!(screen, " ").unwrap(),
+                        1 => canvas.fill_rect(Rect::new(column * 8, row * 8, 8, 8)),
+                        _ => Ok(()),
                     };
                 };
-                println!("");
             }
-            screen.flush().unwrap();
+
+            canvas.present();
         }
+
+        while let Some(event) = event_pump.poll_event() {
+            match event {
+                Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                    break 'running
+                },
+                _ => ()
+            }
+        }
+
+        // rustbox.present();
+        // match rustbox.poll_event(false) {
+        //     Ok(rustbox::Event::KeyEvent(key)) => {
+        //         match key {
+        //             Key::Char('q') => { break 'running; }
+        //             _ => {}
+        //         }
+        //     },
+        //     Err(e) => panic!("{}", e.description()),
+        //     _ => {}
+        // }
     }
 
-    thread::sleep(time::Duration::from_secs(1));
-    write!(screen, "{}", termion::cursor::Show).unwrap();
-    print!("{}", termion::cursor::Show);
+    // thread::sleep(time::Duration::from_secs(1));
+    // write!(screen, "{}", termion::cursor::Show).unwrap();
+    // print!("{}", termion::cursor::Show);
 }
