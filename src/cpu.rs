@@ -61,6 +61,7 @@ impl Cpu {
         let nn = (instruction & 0xFF) as u8;
         let n = (instruction & 0xF) as u8;
 
+        // It might be nicer to match on a tuple of nibbles, like (a, x, y, n)
         match a {
             0x0 => {
                 match n {
@@ -111,7 +112,7 @@ impl Cpu {
                             self.regs[0xF] = 1;
                         }
 
-                        self.regs[x].wrapping_sub(y);
+                        self.regs[x] = self.regs[x].wrapping_sub(y);
                     },
                     0x6 => {
                         self.regs[0xF] = self.regs[x] & 1;
@@ -169,7 +170,7 @@ impl Cpu {
                             self.pc += 2;
                         }
                     }
-                    _ => unimplemented!("keys stuff"),
+                    _ => unimplemented!("Keys stuff. Opcode: {:04x}", instruction),
                 }
             }
             0xF => {
