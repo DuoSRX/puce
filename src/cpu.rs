@@ -51,6 +51,12 @@ impl Cpu {
         }
     }
 
+    pub fn load(&mut self, rom: Vec<u8>) {
+        for (i, byte) in rom.iter().enumerate() {
+            self.mem[0x200 + i] = *byte;
+        }
+    }
+
     pub fn step(&mut self) {
         self.should_draw = false;
 
