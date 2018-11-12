@@ -88,15 +88,37 @@ fn main() {
     }
 }
 
+// Original hexadecimal keyboard layout:
+// 123C
+// 456D
+// 789E
+// A0BF
+// Mapped to:
+// 1234
+// QWER
+// ASDF
+// ZXCV
 fn keycode_to_u8(keycode: Keycode) -> Option<u8> {
     match keycode {
-        Keycode::Num1 => Some(1),
-        Keycode::Num2 => Some(2),
-        Keycode::Num4 => Some(4),
-        Keycode::Num6 => Some(6),
-        Keycode::Num8 => Some(8),
-        Keycode::C => Some(0xC),
-        Keycode::D => Some(0xD),
+        Keycode::Num1 => Some(0x1),
+        Keycode::Num2 => Some(0x2),
+        Keycode::Num3 => Some(0x3),
+        Keycode::Num4 => Some(0xC),
+
+        Keycode::Q => Some(0x4),
+        Keycode::W => Some(0x5),
+        Keycode::E => Some(0x6),
+        Keycode::R => Some(0xD),
+
+        Keycode::A => Some(0x7),
+        Keycode::S => Some(0x8),
+        Keycode::D => Some(0x9),
+        Keycode::F => Some(0xE),
+
+        Keycode::Z => Some(0xA),
+        Keycode::X => Some(0x0),
+        Keycode::C => Some(0xB),
+        Keycode::V => Some(0xF),
         _ => None
     }
 }
