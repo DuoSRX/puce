@@ -132,11 +132,7 @@ impl Cpu {
                     0x3 => self.regs[x] ^= self.regs[y],
                     0x4 => {
                         let res = self.regs[x] as u16 + self.regs[y] as u16;
-                        if res > 255 {
-                            self.regs[0xF] = 1;
-                        } else {
-                            self.regs[0xF] = 0;
-                        }
+                        self.regs[0xF] = if res > 255 { 1 } else { 0 };
                         self.regs[x] = res as u8;
                     },
                     0x5 => {
@@ -164,7 +160,7 @@ impl Cpu {
             },
             0x9 => if self.regs[x] != self.regs[y] { self.pc += 2; },
             0xA => self.i = nnn,
-            0xB => self.pc = nnn + self.regs[0] as u16,
+            0xB => self.pc = nnn.wrapping_add(self.regs[0] as u16),
             0xC => {
                 let mut rng = rand::thread_rng();
                 self.regs[x] = nn & rng.gen::<u8>();
@@ -181,7 +177,10 @@ impl Cpu {
 
                     for line_x in 0..8 {
                         if pixel & (0x80 >> line_x) != 0 {
-                            let offset = (x + line_x + ((y + line_y) * 64)) as usize;
+                            let x_offset = (x + line_x) % 64;
+                            let y_offset = (y + line_y) % 32;
+                            let offset = (x_offset + y_offset * 64) as usize;
+
                             if self.gfx[offset] == 1 { self.regs[0xF] = 1 } // collision
                             self.gfx[offset] ^= 1;
                         }
@@ -215,7 +214,7 @@ impl Cpu {
                     0x07 => self.regs[x] = self.delay,
                     0x15 => self.delay = self.regs[x],
                     0x18 => self.sound = self.regs[x],
-                    0x1E => self.i += self.regs[x] as u16,
+                    0x1E => self.i = self.i.wrapping_add(self.regs[x] as u16),
                     0x29 => self.i = self.regs[x] as u16 * 5,
                     0x33 => {
                         let i = self.i as usize;
