@@ -60,6 +60,9 @@ impl Cpu {
     pub fn step(&mut self) {
         self.should_draw = false;
 
+        if self.delay > 0 { self.delay -= 1 };
+        if self.sound > 0 { print!("BEEP"); self.sound -= 1 }; // TODO: Emit beep
+
         let instruction = self.load_16(self.pc);
         // println!("{:04x}: {:04x} {:?} I:{:04x} S:{:02x} {:?}", self.pc, instruction, self.regs, self.i, self.sp, self.stack);
         self.pc += 2;
@@ -214,9 +217,6 @@ impl Cpu {
             }
             _ => panic!("Not implemented yet {:02x}", instruction),
         };
-
-        if self.delay > 0 { self.delay -= 1 };
-        if self.sound > 0 { print!("BEEP"); self.sound -= 1 }; // TODO: Emit beep
     }
 
     fn load_16(&self, address: u16) -> u16 {

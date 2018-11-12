@@ -267,7 +267,7 @@ fn test_get_timer() {
     cpu.store_16(0x200, 0xF207);
     cpu.delay = 0x42;
     cpu.step();
-    assert_eq!(cpu.regs[2], 0x42);
+    assert_eq!(cpu.regs[2], 0x41);
 }
 
 #[test]
@@ -276,7 +276,7 @@ fn test_set_timer() {
     cpu.store_16(0x200, 0xF215);
     cpu.regs[2] = 0x42;
     cpu.step();
-    assert_eq!(cpu.delay, 0x41);
+    assert_eq!(cpu.delay, 0x42);
 }
 
 #[test]
@@ -285,7 +285,7 @@ fn test_set_sound() {
     cpu.store_16(0x200, 0xF218);
     cpu.regs[2] = 0x42;
     cpu.step();
-    assert_eq!(cpu.sound, 0x41);
+    assert_eq!(cpu.sound, 0x42);
 }
 
 #[test]
