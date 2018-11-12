@@ -2,6 +2,7 @@
 extern crate lazy_static;
 extern crate sdl2;
 
+mod audio;
 mod cpu;
 
 use sdl2::pixels::Color;
@@ -37,6 +38,8 @@ fn main() {
     canvas.set_draw_color(Color::RGB(0, 0, 0));
     canvas.clear();
     canvas.present();
+
+    let beep = audio::Audio::new(&sdl_context);
 
     let mut event_pump = sdl_context.event_pump().unwrap();
 
@@ -75,7 +78,13 @@ fn main() {
             canvas.present();
         }
 
-        thread::sleep(time::Duration::from_secs(1) / 240);
+        if cpu.should_beep {
+            beep.start();
+        } else {
+            beep.stop();
+        }
+
+        //thread::sleep(time::Duration::from_secs(1) / 240);
     }
 }
 

@@ -48,6 +48,8 @@ pub struct Cpu {
     sound: u8,
     /// Whether to draw graphics
     pub should_draw: bool,
+    /// Whether to emit a beeping sound
+    pub should_beep: bool,
     /// Last key pressed
     pub key_pressed: Option<u8>,
 }
@@ -68,6 +70,7 @@ impl Cpu {
             delay: 0,
             sound: 0,
             should_draw: false,
+            should_beep: false,
             key_pressed: None,
         }
     }
@@ -82,7 +85,7 @@ impl Cpu {
         self.should_draw = false;
 
         if self.delay > 0 { self.delay -= 1 };
-        if self.sound > 0 { print!("BEEP"); self.sound -= 1 }; // TODO: Emit beep
+        if self.sound > 0 { self.sound -= 1 };
 
         let instruction = self.load_16(self.pc);
         // println!("{:04x}: {:04x} {:?} I:{:04x} S:{:02x} {:?}", self.pc, instruction, self.regs, self.i, self.sp, self.stack);
@@ -238,6 +241,8 @@ impl Cpu {
             }
             _ => panic!("Not implemented yet {:02x}", instruction),
         };
+
+        self.should_beep = self.sound > 0;
     }
 
     fn load_16(&self, address: u16) -> u16 {

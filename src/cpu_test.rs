@@ -5,6 +5,8 @@ fn test_boot_state() {
     let cpu = Cpu::new();
     assert_eq!(cpu.pc, 0x200);
     assert_eq!(cpu.sp, 0);
+    assert!(!cpu.should_draw);
+    assert!(!cpu.should_beep);
 }
 
 #[test]
