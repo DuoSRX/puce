@@ -1,5 +1,9 @@
 extern crate rand;
 
+#[cfg(test)]
+#[path = "./cpu_test.rs"]
+mod cpu_test;
+
 use rand::Rng;
 
 pub struct Cpu {
@@ -18,9 +22,9 @@ pub struct Cpu {
     /// Graphics. 2048 pixels
     pub gfx: Vec<u8>,
     /// Delay timer
-    delay: u8,
+    pub delay: u8,
     /// Sound Timer
-    sound: u8,
+    pub sound: u8,
     /// Whether to draw graphics
     pub should_draw: bool,
     /// Last key pressed
@@ -105,22 +109,21 @@ impl Cpu {
                     0x5 => {
                         let x2 = self.regs[x];
                         let y = self.regs[y];
-
-                        if y > x2 {
-                            self.regs[0xF] = 0;
-                        } else {
-                            self.regs[0xF] = 1;
-                        }
-
+                        self.regs[0xF] = if y > x2 { 0 } else { 1 };
                         self.regs[x] = self.regs[x].wrapping_sub(y);
                     },
                     0x6 => {
                         self.regs[0xF] = self.regs[x] & 1;
                         self.regs[x] >>= 1;
                     },
-                    0x7 => unimplemented!("VY-VX"),
+                    0x7 => {
+                        let x2 = self.regs[x];
+                        let y = self.regs[y];
+                        self.regs[0xF] = if y < x2 { 0 } else { 1 };
+                        self.regs[x] = y.wrapping_sub(self.regs[x]);
+                    },
                     0xE => {
-                        self.regs[0xF] = self.regs[x] & 8;
+                        self.regs[0xF] = self.regs[x] >> 7;
                         self.regs[x] <<= 1;
                     },
                     _ => unreachable!("Unrecognize opcode {:02x}", instruction),
@@ -216,10 +219,11 @@ impl Cpu {
         (hi << 8) + lo
     } 
 
-    // fn store_16(&mut self, address: u16, value: u16) {
-    //     self.mem[address as usize] = (value >> 8) as u8;
-    //     self.mem[address as usize + 1] = (value & 0xFF) as u8;
-    // }
+    #[allow(dead_code)]
+    fn store_16(&mut self, address: u16, value: u16) {
+        self.mem[address as usize] = (value >> 8) as u8;
+        self.mem[address as usize + 1] = (value & 0xFF) as u8;
+    }
 
     fn fontset() -> Vec<u8> {
         vec![
